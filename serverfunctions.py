@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-def choice_validity(board_dict, num_choice):
-    if not (1 <= num_choice <= 9 and board_dict[num_choice - 1] == '-'):
+def choice_validity(board_dict, socket, num_choice):
+    board = board_dict[socket]
+    if not (1 <= num_choice <= 9 and board[num_choice - 1] == '-'):
         return "ILLEGAL"
     else:
-        board_dict[num_choice - 1] = 'O' # client move
+        board_dict[socket] = board[:num_choice - 1] + "O" + board[num_choice:]
         return "LEGAL"
 
 
@@ -25,9 +26,11 @@ def finish_cond(board):
         return True
     return False
 
+
 # ideally the server should play his best move
-def server_move(board):
+def server_move(board_dict, socket):
+    board = board_dict[socket]
     for i in range(9):
         if board[i] == '-':
-            board[i] = 'X'
-            return
+            board_dict[socket] = board[:i] + "X" + board[i + 1:]
+            break

@@ -17,8 +17,8 @@ def create_socket(hostname, port):
         print("Failed to initialize connection")
         sys.exit(1)
 
-# initialize the connection, game
-def tictac_client(hostname, port):
+
+def tictactoc_client(hostname, port):
     global sock
     create_socket(hostname, port)
     inputs = [sock, sys.stdin]
@@ -57,10 +57,10 @@ def tictac_client(hostname, port):
                     sys.exit(1)
                 recv_dict[obj] += packed
                 if recv_dict[obj][-3:]== b"end":  # message was fully read
-                    data = unpack(">iccccccccc", recv_dict[obj][:-3])
+                    data = unpack(">i9s", recv_dict[obj][:-3])
                     recv_dict[obj] = b""
-                    message_type, o1, o2, o3, o4, o5, o6, o7, o8, o9 = data
-                    game_continue = clientfunctions.game_seq_progress(message_type, o1.decode(), o2.decode(), o3.decode(), o4.decode(), o5.decode(), o6.decode(), o7.decode(), o8.decode(), o9.decode())
+                    message_type, board = data
+                    game_continue = clientfunctions.game_seq_progress(message_type, board.decode())
 
                     if not game_continue:
                         sock.close()
@@ -84,10 +84,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if len(sys.argv) == 3:
-        tictac_client(sys.argv[1], int(sys.argv[2]))
+        tictactoc_client(sys.argv[1], int(sys.argv[2]))
 
     elif len(sys.argv) == 2:
-        tictac_client(sys.argv[1], 6444)
+        tictactoc_client(sys.argv[1], 6444)
 
     else:
-        tictac_client('localhost', 6444)
+        tictactoc_client('localhost', 6444)

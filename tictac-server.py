@@ -6,12 +6,16 @@ from struct import *
 
 HOST = 'localhost'  # Standard loopback interface address (localhost)
 PORT = 6444  # Port to listen on (non-privileged ports are > 1023)
+EMPTY_BOARD = "---------"
+ENCODING_FORMAT = ">i9s3s"
+# helper string to detect the end of the encoded/decoded message
+END = "end"
 
 num_players = 0
 wait_list_size = 0
 
 if len(sys.argv) != 3 and len(sys.argv) != 4:
-    print("Unappropriate arguments")
+    print("Unappropriated arguments")
     sys.exit(1)
 
 if len(sys.argv) == 4:
@@ -37,7 +41,8 @@ send_dict = {}
 board_dict = {}
 
 while True:
-    '''In transmission protocol 0:INITIAL MESSAGE, 1:LEGAL, 2:ILLEGAL, 3:WIN, 4:LOSE, 5:ILLEGAL AND GAMEOVER SIMULTANEOUSLY, 6:WAITING LIST' 7:REJECTION'''
+    '''In transmission protocol 0:INITIAL MESSAGE, 1:LEGAL, 2:ILLEGAL, 3:WIN, 4:LOSE, 5:ILLEGAL AND GAMEOVER 
+    SIMULTANEOUSLY, 6:WAITING LIST' 7:REJECTION'''
     read, write, err = select(sockets, outputs, [])
     for socket in read:
         if socket == sock:
@@ -49,10 +54,9 @@ while True:
                     current_players.append(conn)
                     outputs.append(conn)
 
-                    send_dict[conn] = pack(">iccccccccc3s", 0, b'-', b'-', b'-', b'-', b'-', b'-',
-                                           b'-', b'-', b'-',
-                                           "end".encode())
-                    board_dict[conn] = ['-' for i in range(9)]
+                    send_dict[conn] = pack(ENCODING_FORMAT, 0, EMPTY_BOARD.encode(),
+                                           END.encode())
+                    board_dict[conn] = EMPTY_BOARD
                     recv_dict[conn] = b""
 
                 else:
@@ -61,15 +65,13 @@ while True:
                         wait_list.append(conn)
                         outputs.append(conn)
 
-                        send_dict[conn] = pack(">iccccccccc3s", 6, b'-', b'-', b'-', b'-', b'-', b'-',
-                                               b'-', b'-', b'-',
-                                               "end".encode())  # message to send
+                        send_dict[conn] = pack(ENCODING_FORMAT, 6, EMPTY_BOARD.encode(),
+                                               END.encode())  # message to send
                         recv_dict[conn] = b""
 
                     else:  # rejection message
-                        send_dict[conn] = pack(">iccccccccc3s", 7, b'-', b'-', b'-', b'-', b'-', b'-',
-                                               b'-', b'-', b'-',
-                                               "end".encode())
+                        send_dict[conn] = pack(ENCODING_FORMAT, 7, EMPTY_BOARD.encode(),
+                                               END.encode())
                         sockets.append(conn)
                         outputs.append(conn)
 
@@ -106,10 +108,9 @@ while True:
                     wait_list.remove(new_player)
 
                     recv_dict[new_player] = b""
-                    send_dict[new_player] = pack(">iccccccccc3s", 0, b'-', b'-', b'-', b'-', b'-', b'-',
-                                                 b'-', b'-', b'-',
-                                                 "end".encode())
-                    board_dict[new_player] = ['-' for i in range(9)]
+                    send_dict[new_player] = pack(ENCODING_FORMAT, 0, EMPTY_BOARD.encode(),
+                                                 END.encode())
+                    board_dict[new_player] = EMPTY_BOARD
 
             else:
                 recv_dict[socket] += packed
@@ -122,63 +123,33 @@ while True:
                     #  illegal input. special case when user input in invalid.
                     if message_type == 2:
                         # the user loses his turn, server plays another turn
-                        server_move(board_dict[socket])
+                        server_move(board_dict, socket)
                         if finish_cond(board_dict[socket]):  # illegal input and server win
-                            send_dict[socket] = pack(">iccccccccc3s", 5, b'-', b'-', b'-', b'-', b'-', b'-',
-                                                     b'-', b'-', b'-', "end".encode())
+                            send_dict[socket] = pack(ENCODING_FORMAT, 5, EMPTY_BOARD.encode(), END.encode())
                         else:
-                            send_dict[socket] = pack(">iccccccccc3s", 2, board_dict[socket][0].encode(),
-                                                     board_dict[socket][1].encode(),
-                                                     board_dict[socket][2].encode(),
-                                                     board_dict[socket][3].encode(), board_dict[socket][4].encode(),
-                                                     board_dict[socket][5].encode(),
-                                                     board_dict[socket][6].encode(), board_dict[socket][7].encode(),
-                                                     board_dict[socket][8].encode(), "end".encode())
+                            send_dict[socket] = pack(ENCODING_FORMAT, 2, board_dict[socket].encode(), END.encode())
 
                     else:
-                        validity = choice_validity(board_dict[socket], num_taken)
+                        validity = choice_validity(board_dict, socket, num_taken)
 
                         if validity == 'LEGAL':
                             # client wins
                             if finish_cond(board_dict[socket]):
-                                send_dict[socket] = pack(">iccccccccc3s", 3, b'-', b'-', b'-', b'-', b'-', b'-',
-                                                         b'-', b'-', b'-', "end".encode())
+                                send_dict[socket] = pack(ENCODING_FORMAT, 3, EMPTY_BOARD.encode(), END.encode())
                             # regular progression
                             else:
-                                server_move(board_dict[socket])
+                                server_move(board_dict, socket)
                                 if finish_cond(board_dict[socket]):
-                                    send_dict[socket] = pack(">iccccccccc3s", 4, board_dict[socket][0].encode(),
-                                                             board_dict[socket][1].encode(),
-                                                             board_dict[socket][2].encode(),
-                                                             board_dict[socket][3].encode(),
-                                                             board_dict[socket][4].encode(),
-                                                             board_dict[socket][5].encode(),
-                                                             board_dict[socket][6].encode(),
-                                                             board_dict[socket][7].encode(),
-                                                             board_dict[socket][8].encode(), "end".encode())
+                                    send_dict[socket] = pack(ENCODING_FORMAT, 4, board_dict[socket].encode(), END.encode())
                                 else:
-                                    send_dict[socket] = pack(">iccccccccc3s", 1, board_dict[socket][0].encode(),
-                                                             board_dict[socket][1].encode(),
-                                                             board_dict[socket][2].encode(),
-                                                             board_dict[socket][3].encode(),
-                                                             board_dict[socket][4].encode(),
-                                                             board_dict[socket][5].encode(),
-                                                             board_dict[socket][6].encode(),
-                                                             board_dict[socket][7].encode(),
-                                                             board_dict[socket][8].encode(), "end".encode())
+                                    send_dict[socket] = pack(ENCODING_FORMAT, 1, board_dict[socket].encode(),
+                                                             END.encode())
                         elif validity == 'ILLEGAL':
-                            server_move(board_dict[socket])
+                            server_move(board_dict, socket)
                             if finish_cond(board_dict[socket]):  # illegal turn and server win
-                                send_dict[socket] = pack(">iccccccccc3s", 5, b'-', b'-', b'-', b'-', b'-', b'-',
-                                                         b'-', b'-', b'-', "end".encode())
+                                send_dict[socket] = pack(ENCODING_FORMAT, 5, EMPTY_BOARD.encode(), END.encode())
                             else:
-                                send_dict[socket] = pack(">iccccccccc3s", 2, board_dict[socket][0].encode(),
-                                                         board_dict[socket][1].encode(),
-                                                         board_dict[socket][2].encode(),
-                                                         board_dict[socket][3].encode(), board_dict[socket][4].encode(),
-                                                         board_dict[socket][5].encode(),
-                                                         board_dict[socket][6].encode(), board_dict[socket][7].encode(),
-                                                         board_dict[socket][8].encode(), "end".encode())
+                                send_dict[socket] = pack(ENCODING_FORMAT, 2, board_dict[socket].encode(), END.encode())
 
     for socket in write:
         bytes_sent = socket.send(send_dict[socket][:3])
