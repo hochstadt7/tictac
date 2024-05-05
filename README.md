@@ -16,3 +16,12 @@ Then comes the server's response, and so on. After each move, the new board afte
 Following each move, it is being checked whether the game is over, and if so, the winner is declared and the connection is paused, which allows the next client in the waiting list to become an active player.
 If the client gives a wrong input, its turn is skipped, and the server makes another move.
 A client may quit the game in the middle, if he inserts "Q" as an input, causing the termination of the game and a disconnection from the server.
+
+Some deatils on my implementation:
+On the server side, the connection is established using the socket() -> bind() -> listen() -> accept(),
+while on the client side, the connection is established using socket() -> connect().
+A mapping from a writtable sockets to their (about to) sent information is maintained. The same way,
+A mapping from a readable sockets to their (about to) read information is maintained.
+Thus, we are able to read/write in chunks parts of messages, and process the input/ouput when it's completed.
+
+The board game itself is saved as 1-dimension array of size 9, and checking a winning condition is simply by traversing rows/columns/diagonals.
